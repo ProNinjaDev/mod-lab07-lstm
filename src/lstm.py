@@ -14,34 +14,42 @@ from tensorflow import keras
 import random
 import sys
 
-with open('kolobok.txt', 'r') as file:
+with open('input.txt', 'r') as file:
     text = file.read()
 
-vocabulary = sorted(list(set(text)))
+text_for_processing = text.lower()
+text_for_processing = text_for_processing.replace('\n', ' ') # перенос строк
+punctuation_to_remove = ['.', ',', '!', '?', ':', ';', '(', ')', '"', '«', '»']
+for char in punctuation_to_remove:
+     text_for_processing = text_for_processing.replace(char, ' ')
+
+words = text_for_processing.split()
+words = [word for word in words if word]
+
+vocabulary = sorted(list(set(words)))
 
 
-char_to_indices = dict((c, i) for i, c in enumerate(vocabulary))
-indices_to_char = dict((i, c) for i, c in enumerate(vocabulary))
+word_to_indices = dict((w, i) for i, w in enumerate(vocabulary))
+indices_to_word = dict((i, w) for i, w in enumerate(vocabulary))
 
 
 max_length = 10
 steps = 1
-sentences = []
-next_chars = []
+sequences = []
+next_words = []
+
+for i in range(0, len(words) - max_length, steps):
+    sequences.append(words[i: i + max_length])
+    next_words.append(words[i + max_length])
 
 
-for i in range(0, len(text) - max_length, steps):
-    sentences.append(text[i: i + max_length])
-    next_chars.append(text[i + max_length])
+X = np.zeros((len(sequences), max_length, len(vocabulary)), dtype = np.bool_)
+y = np.zeros((len(sequences), len(vocabulary)), dtype = np.bool_)
 
-
-X = np.zeros((len(sentences), max_length, len(vocabulary)), dtype = np.bool_)
-
-y = np.zeros((len(sentences), len(vocabulary)), dtype = np.bool_)
-for i, sentence in enumerate(sentences):
-    for t, char in enumerate(sentence):
-        X[i, t, char_to_indices[char]] = 1
-    y[i, char_to_indices[next_chars[i]]] = 1
+for i, sequence in enumerate(sequences):
+    for t, word in enumerate(sequence):
+        X[i, t, word_to_indices[word]] = 1
+    y[i, word_to_indices[next_words[i]]] = 1
 
 # Строим LSTM-сеть
 model = keras.models.Sequential()
@@ -71,11 +79,11 @@ def generate_text(length, diversity):
     for i in range(length):
             x_pred = np.zeros((1, max_length, len(vocabulary)))
             for t, char in enumerate(sentence):
-                x_pred[0, t, char_to_indices[char]] = 1.
+                x_pred[0, t, word_to_indices[char]] = 1.
 
             preds = model.predict(x_pred, verbose = 0)[0]
             next_index = sample_index(preds, diversity)
-            next_char = indices_to_char[next_index]
+            next_char = indices_to_word[next_index]
 
             generated += next_char
             sentence = sentence[1:] + next_char
