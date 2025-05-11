@@ -13,8 +13,9 @@ from tensorflow import keras
 # from tensorflow.keras.callbacks import ReduceLROnPlateau 
 import random
 import sys
+import os
 
-with open('input.txt', 'r') as file:
+with open('src/input.txt', 'r', encoding='utf-8') as file:
     text = file.read()
 
 text_for_processing = text.lower()
@@ -72,21 +73,28 @@ model.fit(X, y, batch_size = 128, epochs = 50)
 
 def generate_text(length, diversity):
     # Случайное начало
-    start_index = random.randint(0, len(text) - max_length - 1)
-    generated = ''
-    sentence = text[start_index: start_index + max_length]
-    generated += sentence
+    start_index = random.randint(0, len(words) - max_length - 1)
+    generated = []
+    sequence = words[start_index: start_index + max_length]
+    generated.extend(sequence)
     for i in range(length):
             x_pred = np.zeros((1, max_length, len(vocabulary)))
-            for t, char in enumerate(sentence):
-                x_pred[0, t, word_to_indices[char]] = 1.
+            for t, word in enumerate(sequence):
+                x_pred[0, t, word_to_indices[word]] = 1.
 
             preds = model.predict(x_pred, verbose = 0)[0]
             next_index = sample_index(preds, diversity)
-            next_char = indices_to_word[next_index]
+            next_word = indices_to_word[next_index]
 
-            generated += next_char
-            sentence = sentence[1:] + next_char
-    return generated
+            generated.append(next_word)
+            sequence = sequence[1:] + [next_word]
+    return " ".join(generated)
 
-print(generate_text(1500, 0.2)) 
+num_words_generate = 1000
+diversity_user = 0.2
+generated_text = generate_text(num_words_generate, diversity_user)
+
+output_file_path = os.path.join('result', 'gen.txt')
+
+with open(output_file_path, 'w', encoding='utf-8') as f:
+     f.write(generated_text)
